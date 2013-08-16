@@ -1,5 +1,3 @@
-
-// open a single window
 var win = Ti.UI.createWindow({
 	backgroundColor : 'white'
 });
@@ -15,12 +13,27 @@ var recordButton = Ti.UI.createButton({
 	width : '200dp',
 	top : '100dp'
 });
-win.add(record);
+win.add(recordButton);
 
-record.addEventListener('click', function() {
+recordButton.addEventListener('click', function() {
+	/*
 	audiorecoder.recordAudio("i am form js", function(result) {
 		var id = result['id'];
 		alert("id = "+id);
 	});
+	*/
+	
+    audiorecoder.startRecording({
+    	fileFormat:"mp3",
+    	filePath: "sd/opt/mydir/rec",
+        success: function(d) {
+        	alert("success");
+            Ti.API.info("response is => " + JSON.stringify(d));
+        },
+        cancel: function(d) {
+        	alert("cancel");
+            Ti.API.info("error is => " + JSON.stringify(d));
+        }
+    });
 });
 

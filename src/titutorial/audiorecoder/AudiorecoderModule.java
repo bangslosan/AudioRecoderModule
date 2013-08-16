@@ -8,14 +8,21 @@
  */
 package titutorial.audiorecoder;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.HashMap;
 
+import org.appcelerator.kroll.KrollDict;
 import org.appcelerator.kroll.KrollFunction;
 import org.appcelerator.kroll.KrollModule;
 import org.appcelerator.kroll.annotations.Kroll;
 
 import org.appcelerator.titanium.TiApplication;
 import org.appcelerator.kroll.common.Log;
+
+import android.media.MediaRecorder;
+import android.os.Environment;
+
 
 @Kroll.module(name="Audiorecoder", id="titutorial.audiorecoder")
 public class AudiorecoderModule extends KrollModule
@@ -26,6 +33,18 @@ public class AudiorecoderModule extends KrollModule
 
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
+	// The JavaScript callbacks (KrollCallback objects)
+	
+	private MediaRecorder recorder = null;
+	String fileName = null;
+	private int currentFormat = 0;
+	private int output_formats[] = { MediaRecorder.OutputFormat.MPEG_4,
+			MediaRecorder.OutputFormat.THREE_GPP };
+	private String file_exts[] = { AUDIO_RECORDER_FILE_EXT_MP4,
+			AUDIO_RECORDER_FILE_EXT_3GP };
+	
+	private KrollFunction successCallback = null;
+	private KrollFunction cancelCallback = null;
 	
 	public AudiorecoderModule()
 	{
@@ -47,6 +66,12 @@ public class AudiorecoderModule extends KrollModule
 		return "hello world";
 	}
 
+	// Methods
+	@SuppressWarnings("deprecation")
+	private KrollFunction getCallback(final KrollDict options, final String name){
+		return (KrollFunction) options.get(name);
+	}
+	/*
 	@Kroll.method
 	public void recordAudio(String name, KrollFunction callback)
 	{	
@@ -54,6 +79,121 @@ public class AudiorecoderModule extends KrollModule
 		  HashMap map = new HashMap();
 		  map.put("id", "12345");
 		  callback.call(getKrollObject(), map);
+	}
+	*/
+
+	
+	private void sendSuccessEvent(String file_path)
+	{
+		if (successCallback != null) {
+			Log.d(TAG, "inside: successCallback");
+			HashMap<String, String> event = new HashMap<String, String>();
+			event.put("success", "true");
+			
+			// Fire an event directly to the specified listener (callback)
+			successCallback.call(getKrollObject(), event);
+		}
+	}
+	
+	private void sendCancelEvent(String message)
+	{
+		if (cancelCallback != null) {
+			HashMap<String, String> event = new HashMap<String, String>();
+			event.put("message", message);
+			
+			// Fire an event directly to the specified listener (callback)
+			cancelCallback.call(getKrollObject(), event);
+		}
+	}
+
+	@Kroll.method
+	public void registerCallbacks(HashMap args)
+	{
+		Object callback;
+		
+		Log.d(TAG,"[KROLLDEMO] registerCallbacks called");
+		
+		// Save the callback functions, verifying that they are of the correct type
+		if (args.containsKey("success")) {
+			callback = args.get("success");
+			if (callback instanceof KrollFunction) {
+				successCallback = (KrollFunction)callback;
+			}
+		}
+		if (args.containsKey("cancel")) {
+			callback = args.get("cancel");
+			if (callback instanceof KrollFunction) {
+				cancelCallback = (KrollFunction)callback;
+			}
+		}	
+		
+		Log.d(TAG,"[KROLLDEMO] Callbacks registered");
+	}
+
+	private String getFilename() {
+		String filepath = Environment.getExternalStorageDirectory().getPath();
+		File file = new File(filepath, AUDIO_RECORDER_FOLDER);
+
+		if (!file.exists()) {
+			file.mkdirs();
+		}
+
+		fileName = (file.getAbsolutePath() + "/" + System.currentTimeMillis() + file_exts[currentFormat]);
+		return fileName;
+	}
+	
+	@Kroll.method
+	public void startRecording(HashMap args)
+	{	
+		KrollDict options = new KrollDict(args);
+		String fileFormat = (String) options.get("fileFormat");
+		String filePath = (String) options.get("filePath");
+		Log.d(TAG, "fileFormat: " + fileFormat);
+		Log.d(TAG, "filePath: " + filePath);
+		
+		//final KrollFunction successCallback = getCallback(options, "success");
+		//final KrollFunction cancelCallback = getCallback(options, "error");
+		registerCallbacks(args);
+		
+		Log.d(TAG, "successCallback: " + successCallback);
+		Log.d(TAG, "cancelCallback: " + cancelCallback);
+		
+		//HashMap map = new HashMap();
+		//map.put("id", "12345");
+		//successCallback.call(getKrollObject(), map);
+		Log.d(TAG, "calling: successCallback");
+		sendSuccessEvent("file_path");
+		
+		recorder = new MediaRecorder();
+
+		recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
+		recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
+		recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
+		recorder.setOutputFile(getFilename());
+
+		//recorder.setOnErrorListener(errorListener);
+		//recorder.setOnInfoListener(infoListener);
+
+		try {
+			recorder.prepare();
+			recorder.start();
+		} catch (IllegalStateException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}	
+		
+	}
+	
+	@Kroll.method
+	private void stopRecording() {
+		if (null != recorder) {
+			recorder.stop();
+			recorder.reset();
+			recorder.release();
+
+			recorder = null;
+		}
 	}
 	
 	// Properties
