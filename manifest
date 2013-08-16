@@ -1,0 +1,18 @@
+#
+# this is your module manifest and used by Titanium
+# during compilation, packaging, distribution, etc.
+#
+version: 1.0
+apiversion: 2
+description: Titanium module for record audio using without intent in Android.
+author: Karthi Ponnusamy
+license: Specify your license
+copyright: Titaniumtutorial.com
+
+
+# these should not be edited
+name: audiorecoder
+moduleid: titutorial.audiorecoder
+guid: 06b63484-0ff3-4a26-95e0-76642ae1b678
+platform: android
+minsdk: 3.1.0.GA
