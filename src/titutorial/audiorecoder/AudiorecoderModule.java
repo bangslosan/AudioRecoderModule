@@ -36,12 +36,12 @@ public class AudiorecoderModule extends KrollModule
 	// The JavaScript callbacks (KrollCallback objects)
 	
 	private MediaRecorder recorder = null;
-	String fileName = null;
+	private String fileName = null;
+	private String outPutFile = null;
+	private String AUDIO_RECORDER_FOLDER = "AudioRecorder";
 	private int currentFormat = 0;
 	private int output_formats[] = { MediaRecorder.OutputFormat.MPEG_4,
 			MediaRecorder.OutputFormat.THREE_GPP };
-	private String file_exts[] = { AUDIO_RECORDER_FILE_EXT_MP4,
-			AUDIO_RECORDER_FILE_EXT_3GP };
 	
 	private KrollFunction successCallback = null;
 	private KrollFunction cancelCallback = null;
@@ -71,24 +71,26 @@ public class AudiorecoderModule extends KrollModule
 	private KrollFunction getCallback(final KrollDict options, final String name){
 		return (KrollFunction) options.get(name);
 	}
-	/*
-	@Kroll.method
-	public void recordAudio(String name, KrollFunction callback)
-	{	
-		  Log.d(TAG, "name = "+name);
-		  HashMap map = new HashMap();
-		  map.put("id", "12345");
-		  callback.call(getKrollObject(), map);
-	}
-	*/
 
-	
-	private void sendSuccessEvent(String file_path)
+    public static String getSdCardPath() {
+        return Environment.getExternalStorageDirectory().getPath() + "/";
+    }
+    
+	private void sendSuccessEvent(String filepath)
 	{
 		if (successCallback != null) {
 			Log.d(TAG, "inside: successCallback");
+			Log.d(TAG, "filepath: "+filepath);
+			String filepath1 = getSdCardPath() + filepath;
+			String tmpPath = outPutFile;
+			Log.d(TAG, "getSdCardPath : "+getSdCardPath());
+			Log.d(TAG, "tmpPath: "+tmpPath);
+			Log.d(TAG, "after filepath: "+filepath);
 			HashMap<String, String> event = new HashMap<String, String>();
 			event.put("success", "true");
+			event.put("filepath", filepath);
+			event.put("filepath1", filepath1);
+			event.put("filepath2", tmpPath);
 			
 			// Fire an event directly to the specified listener (callback)
 			successCallback.call(getKrollObject(), event);
@@ -99,6 +101,7 @@ public class AudiorecoderModule extends KrollModule
 	{
 		if (cancelCallback != null) {
 			HashMap<String, String> event = new HashMap<String, String>();
+			event.put("error", "true");
 			event.put("message", message);
 			
 			// Fire an event directly to the specified listener (callback)
@@ -131,14 +134,16 @@ public class AudiorecoderModule extends KrollModule
 	}
 
 	private String getFilename() {
+		String fileFormat = ".3gp";
 		String filepath = Environment.getExternalStorageDirectory().getPath();
 		File file = new File(filepath, AUDIO_RECORDER_FOLDER);
 
 		if (!file.exists()) {
 			file.mkdirs();
 		}
-
-		fileName = (file.getAbsolutePath() + "/" + System.currentTimeMillis() + file_exts[currentFormat]);
+		
+		outPutFile = System.currentTimeMillis() + fileFormat;
+		fileName = (file.getAbsolutePath() + "/" + outPutFile);
 		return fileName;
 	}
 	
@@ -150,19 +155,10 @@ public class AudiorecoderModule extends KrollModule
 		String filePath = (String) options.get("filePath");
 		Log.d(TAG, "fileFormat: " + fileFormat);
 		Log.d(TAG, "filePath: " + filePath);
-		
-		//final KrollFunction successCallback = getCallback(options, "success");
-		//final KrollFunction cancelCallback = getCallback(options, "error");
 		registerCallbacks(args);
 		
 		Log.d(TAG, "successCallback: " + successCallback);
 		Log.d(TAG, "cancelCallback: " + cancelCallback);
-		
-		//HashMap map = new HashMap();
-		//map.put("id", "12345");
-		//successCallback.call(getKrollObject(), map);
-		Log.d(TAG, "calling: successCallback");
-		sendSuccessEvent("file_path");
 		
 		recorder = new MediaRecorder();
 
@@ -170,9 +166,6 @@ public class AudiorecoderModule extends KrollModule
 		recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
 		recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
 		recorder.setOutputFile(getFilename());
-
-		//recorder.setOnErrorListener(errorListener);
-		//recorder.setOnInfoListener(infoListener);
 
 		try {
 			recorder.prepare();
@@ -187,6 +180,7 @@ public class AudiorecoderModule extends KrollModule
 	
 	@Kroll.method
 	private void stopRecording() {
+		Log.d(TAG, "called: stopRecording");
 		if (null != recorder) {
 			recorder.stop();
 			recorder.reset();
@@ -194,6 +188,7 @@ public class AudiorecoderModule extends KrollModule
 
 			recorder = null;
 		}
+		sendSuccessEvent(fileName);
 	}
 	
 	// Properties
