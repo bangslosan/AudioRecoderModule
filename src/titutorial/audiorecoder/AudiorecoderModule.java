@@ -34,15 +34,23 @@ public class AudiorecoderModule extends KrollModule
 	// You can define constants with @Kroll.constant, for example:
 	// @Kroll.constant public static final String EXTERNAL_NAME = value;
 	// The JavaScript callbacks (KrollCallback objects)
+
+	// output format constants
+	@Kroll.constant public static final int OutputFormat_MPEG_4 = MediaRecorder.OutputFormat.MPEG_4;
+	@Kroll.constant public static final int OutputFormat_THREE_GPP = MediaRecorder.OutputFormat.THREE_GPP;
+	
+	//audio encoder
+	@Kroll.constant public static final int AudioEncoder_AAC = MediaRecorder.AudioEncoder.AAC;
+	@Kroll.constant public static final int AudioEncoder_AMR_NB = MediaRecorder.AudioEncoder.AMR_NB;
+	@Kroll.constant public static final int AudioEncoder_AMR_WB = MediaRecorder.AudioEncoder.AMR_WB;
+	@Kroll.constant public static final int AudioEncoder_DEFAULT = MediaRecorder.AudioEncoder.DEFAULT;
+	
 	
 	private MediaRecorder recorder = null;
-	private String fileName = null;
-	private String outPutFile = null;
+	private String fullFileName = null;
+	private String outPutFileName = null;
 	private String AUDIO_RECORDER_FOLDER = "AudioRecorder";
-	private int currentFormat = 0;
-	private int output_formats[] = { MediaRecorder.OutputFormat.MPEG_4,
-			MediaRecorder.OutputFormat.THREE_GPP };
-	
+
 	private KrollFunction successCallback = null;
 	private KrollFunction cancelCallback = null;
 	
@@ -82,7 +90,7 @@ public class AudiorecoderModule extends KrollModule
 			Log.d(TAG, "inside: successCallback");
 			Log.d(TAG, "filepath: "+filepath);
 			String filepath1 = getSdCardPath() + filepath;
-			String tmpPath = outPutFile;
+			String tmpPath = outPutFileName;
 			Log.d(TAG, "getSdCardPath : "+getSdCardPath());
 			Log.d(TAG, "tmpPath: "+tmpPath);
 			Log.d(TAG, "after filepath: "+filepath);
@@ -133,39 +141,66 @@ public class AudiorecoderModule extends KrollModule
 		Log.d(TAG,"[KROLLDEMO] Callbacks registered");
 	}
 
-	private String getFilename() {
+	private String getFilename(int selectedFormat, String selectedFileName,  String selectedDirName) {
+		String DirName = AUDIO_RECORDER_FOLDER;
+		if(selectedDirName !=null && selectedDirName.length()>0){
+			DirName = selectedDirName;
+		}
+		
+		String fileName = System.currentTimeMillis()+"";
+		if(selectedFileName !=null && selectedFileName.length()>0){
+			fileName = selectedFileName;
+		}
+		
 		String fileFormat = ".3gp";
-		String filepath = Environment.getExternalStorageDirectory().getPath();
-		File file = new File(filepath, AUDIO_RECORDER_FOLDER);
+		if(selectedFormat == OutputFormat_THREE_GPP){
+			fileFormat = ".3gp";
+		}else if(selectedFormat == OutputFormat_MPEG_4){
+			fileFormat = ".mp4";
+		}
+		
+		String sdCardPath = Environment.getExternalStorageDirectory().getPath();
+		File file = new File(sdCardPath, selectedDirName);
 
 		if (!file.exists()) {
 			file.mkdirs();
 		}
 		
-		outPutFile = System.currentTimeMillis() + fileFormat;
-		fileName = (file.getAbsolutePath() + "/" + outPutFile);
-		return fileName;
+		outPutFileName = fileName + fileFormat;
+		fullFileName = (file.getAbsolutePath() + "/" + outPutFileName);
+		Log.d(TAG, "@@## fullFileName: " + fullFileName);
+		return fullFileName;
 	}
 	
 	@Kroll.method
 	public void startRecording(HashMap args)
 	{	
 		KrollDict options = new KrollDict(args);
-		String fileFormat = (String) options.get("fileFormat");
-		String filePath = (String) options.get("filePath");
+		int fileFormat = options.optInt("outputFormat", OutputFormat_THREE_GPP);
+		int audioEncoder = options.optInt("audioEncoder", AudioEncoder_AMR_NB);
+		String fileName = (String) options.get("fileName");
+		String fileDirectory = (String) options.get("directoryName");
 		Log.d(TAG, "fileFormat: " + fileFormat);
-		Log.d(TAG, "filePath: " + filePath);
+		Log.d(TAG, "fileName: " + fileName);
+		Log.d(TAG, "fileDirectory: " + fileDirectory);
 		registerCallbacks(args);
-		
-		Log.d(TAG, "successCallback: " + successCallback);
-		Log.d(TAG, "cancelCallback: " + cancelCallback);
 		
 		recorder = new MediaRecorder();
 
 		recorder.setAudioSource(MediaRecorder.AudioSource.MIC);
-		recorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP);
-		recorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB);
-		recorder.setOutputFile(getFilename());
+		recorder.setOutputFormat(fileFormat);
+		recorder.setAudioEncoder(audioEncoder);
+		
+		if (options.containsKey("maxDuration")) {
+			int maxDurValue = options.optInt("maxDuration", 5000);
+			Log.d(TAG, "@@## maxDurValue : " + maxDurValue);
+            try {
+            	recorder.setMaxDuration(maxDurValue);
+            } catch (RuntimeException e) {
+                Log.e(TAG,"setMaxDuration failed !");
+            }
+		}
+		recorder.setOutputFile(getFilename(fileFormat, fileName, fileDirectory));
 
 		try {
 			recorder.prepare();
@@ -181,6 +216,7 @@ public class AudiorecoderModule extends KrollModule
 	@Kroll.method
 	private void stopRecording() {
 		Log.d(TAG, "called: stopRecording");
+		Log.d(TAG, "called: fullFileName = "+fullFileName);
 		if (null != recorder) {
 			recorder.stop();
 			recorder.reset();
@@ -188,7 +224,7 @@ public class AudiorecoderModule extends KrollModule
 
 			recorder = null;
 		}
-		sendSuccessEvent(fileName);
+		sendSuccessEvent(fullFileName);
 	}
 	
 	// Properties
